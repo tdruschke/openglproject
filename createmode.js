@@ -63,8 +63,27 @@ function newBooth() {
     }
 }
 
+function saveLayout() {
+    var boothData = {
+        "booths" : []
+    }
+    for(var i = 0; i < boothArray.length; i++) {
+        boothData.booths[i] = {"id": boothArray[i][0],
+                                "x": boothArray[i][1],
+                                "y": boothArray[i][2],
+                                "w": boothArray[i][3],
+                                "h": boothArray[i][4],
+                                "vendor": boothArray[i][5]};
+    }
+    console.log(boothData);
+}
+
 function initControlEvents() {
     // numBooths on change
+    document.getElementById("numBooths").onchange = function() {
+        maxBooths = parseFloat(document.getElementById("numBooths").value);
+    }
+
     // save layout
     // zoom
 
@@ -101,6 +120,7 @@ function initControlEvents() {
     document.getElementById("boothV").onchange = function() {
         var v = document.getElementById("boothV").value;
         boothArray[selectedBooth-1][5] = v;
+        generatePoints(boothArray[selectedBooth-1]);
     }
     // change rotation?
     // delete selected booth?
@@ -228,11 +248,11 @@ function render() {
     // use sq program
     gl.useProgram(sqShader);
 
-    // gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    // gl.bufferData( gl.ARRAY_BUFFER, flatten(colorsArray), gl.DYNAMIC_DRAW );
-    // var vColor = gl.getAttribLocation( sqShader, "vColor" );
-    // gl.vertexAttribPointer( vColor, 4, gl.FLOAT, false, 0, 0 );
-    // gl.enableVertexAttribArray( vColor);
+    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(colorsArray), gl.DYNAMIC_DRAW );
+    var vColor = gl.getAttribLocation( sqShader, "vColor" );
+    gl.vertexAttribPointer( vColor, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( vColor);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
     gl.bufferData( gl.ARRAY_BUFFER, flatten(pointsArray), gl.DYNAMIC_DRAW );
@@ -305,12 +325,12 @@ window.onload = function() {
     // create color buffer
     cBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    //gl.bufferData(gl.ARRAY_BUFFER, flatten(colorsArray), gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(colorsArray), gl.DYNAMIC_DRAW);
 
     // create triangle buffer
     vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    //gl.bufferData(gl.ARRAY_BUFFER, flatten(pointsArray), gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(pointsArray), gl.DYNAMIC_DRAW);
 
     // Enable the position attribute for our 2D shader program.
     gl.useProgram(shader);
@@ -320,17 +340,17 @@ window.onload = function() {
     // Enable position and color attributes for triangles
     gl.useProgram(sqShader);
 
-    // var vColor = gl.getAttribLocation( sqShader, "vColor" );
-    // gl.vertexAttribPointer( vColor, 4, gl.FLOAT, false, 0, 0 );
-    // gl.enableVertexAttribArray( vColor);
+    var vColor = gl.getAttribLocation( sqShader, "vColor" );
+    gl.vertexAttribPointer( vColor, 4, gl.FLOAT, false, 0, 0 );
+    gl.enableVertexAttribArray( vColor);
 
     var vPosition2 = gl.getAttribLocation( sqShader, "vPosition2" );
     gl.vertexAttribPointer( vPosition2, 4, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vPosition2 );
 
-    triangleColor = gl.getUniformLocation(sqShader, "fColor");
+    //triangleColor = gl.getUniformLocation(sqShader, "fColor");
 
-    gl.uniform4fv(triangleColor, vec4(.3,.7,.7,1));
+    //gl.uniform4fv(triangleColor, vec4(.3,.7,.7,1));
 
     // Set up events for the HTML controls
     initControlEvents();
