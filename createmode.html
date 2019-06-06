@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" >
+        <title>Booth Creator</title>
+
+        <script id="fragment-shader-sq" type="x-shader/x-fragment">
+            precision mediump float;
+            
+            uniform vec4 fColor;
+
+            void main()
+            {
+                gl_FragColor = fColor;
+            }
+        </script>
+
+        <script id="vertex-shader" type="x-shader/x-vertex">
+            //  Vertex shader for 3D rendering 
+            attribute  vec4 vPosition2;
+            attribute  vec4 vColor;
+
+
+            void main() 
+            { 
+                gl_Position = vPosition2;
+            }
+        </script>
+
+        <script id="fragment-shader" type="x-shader/x-fragment">
+            precision mediump float;
+            
+            uniform vec3 lineColor;
+
+            void main()
+            {
+                gl_FragColor = vec4(lineColor, 1.0);
+            }
+        </script>
+        
+        <script id="vertex-shader-2d" type="x-shader/x-vertex">
+            attribute vec2 vPosition;
+
+            void main()
+            {
+                gl_Position = vec4(vPosition, 0, 1);
+                gl_PointSize = 12.0;
+            }
+        </script>
+
+        <!-- Included in the folder but can also be Downloaded: http://www.cs.unm.edu/~angel/WebGL/7E/Common/angelCommon.zip -->
+        <script type="text/javascript" src="webgl-utils.js"></script>
+        <script type="text/javascript" src="initShaders.js"></script>
+        <script type="text/javascript" src="MV.js"></script>
+        
+    </head>
+
+    <body> 
+        <canvas id="gl-canvas" width="512" height="400">
+            Oops ... your browser doesn't support the HTML5 canvas element
+        </canvas> 
+        <div>
+            <input onclick="newBooth()" type="button" value="New Booth" id="btnNewBooth" />
+        </div>
+        <div id="numBoothsDiv">
+            Maximum Number of Booths: <input id="numBooths" type="number" value="20" min="1" max="100" step="1" />
+        </div>
+        <div id="boothStats" style="visibility:hidden">
+            <h3>Selected Booth</h3>
+            <div>
+                Booth Number: <input id="boothNum" type="number"/>
+            </div>
+            <div>
+                Center x: <input id="boothX" type="number" step="0.01"/>
+                <br>
+                Center y: <input id="boothY" type="number" step="0.01"/>
+            </div>
+            <div>
+                Height: <input id="boothH" type="number" step="0.01"/>
+                <br>
+                Width: <input id="boothW" type="number" step="0.01"/>
+            </div>
+            <div>
+                Vendor: <input id="boothV" type="text">
+            </div>
+        </div>
+        </div>
+        <script type="text/javascript" src="createmode.js"></script>
+    </body>
+</html>
