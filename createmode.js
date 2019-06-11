@@ -28,6 +28,11 @@ var triangleColor;
 var c_open = vec4(.2, .8, .8, 1.0);
 var c_taken = vec4(.8, .2, .2, 1.0);
 
+// booth save states
+const BSS_UNCHANGED = 0;
+const BSS_CHANGED = 1;
+const BSS_NEW = 2;
+
 // border
 var b = 0.999;
 var boarder =[vec2(b, b), vec2(-b, b),
@@ -39,9 +44,6 @@ var boarder =[vec2(b, b), vec2(-b, b),
 var clicked_x;
 var clicked_y;
 
-// initialize state from file, if present
-// create file if not
-
 function newBooth() {
     if (nextBoothNumber <= maxBooths) {
         var number = nextBoothNumber;
@@ -50,13 +52,11 @@ function newBooth() {
         var h = 0.2;
         var w = 0.2;
         var vendor = "";
-        var booth = [number, x, y, w, h, vendor];
+        var booth = [number, x, y, w, h, vendor, BSS_NEW];
         selectedBooth = number;
         boothArray.push(booth);
         generatePoints(booth);
         displayBooth(selectedBooth);
-        // console.log("nextBoothNumber "+nextBoothNumber);
-        // console.log("max booth "+maxBooths);
     }
     else {
         alert("Maximum booth limit reached!");
@@ -64,18 +64,74 @@ function newBooth() {
 }
 
 function saveLayout() {
+    console.log(boothArray);
     var boothData = {
-        "booths" : []
-    }
+        "new" : [],
+        "changed" : []
+    };
+    var n = c = 0;
     for(var i = 0; i < boothArray.length; i++) {
-        boothData.booths[i] = {"id": boothArray[i][0],
-                                "x": boothArray[i][1],
-                                "y": boothArray[i][2],
-                                "w": boothArray[i][3],
-                                "h": boothArray[i][4],
-                                "vendor": boothArray[i][5]};
+        if (boothArray[i][6] == BSS_NEW) {
+            boothData.new[n] = {
+                "id": boothArray[i][0],
+                "x": boothArray[i][1],
+                "y": boothArray[i][2],
+                "w": boothArray[i][3],
+                "h": boothArray[i][4],
+                "vendor": boothArray[i][5]
+            };
+            boothArray[i][6] = BSS_UNCHANGED;
+            n += 1;
+        }
+        else if (boothArray[i][6] == BSS_CHANGED) {
+            boothData.changed[c] = {
+                "id": boothArray[i][0],
+                "x": boothArray[i][1],
+                "y": boothArray[i][2],
+                "w": boothArray[i][3],
+                "h": boothArray[i][4],
+                "vendor": boothArray[i][5]
+            };
+            boothArray[i][6] = BSS_UNCHANGED;
+            c += 1;
+        }
     }
-    console.log(boothData);
+    
+    var data = "json_string="+JSON.stringify(boothData);
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("POST", "savedata.php", true);
+    xhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    console.log(data);
+    xhttp.send(data);
+}
+
+function loadLayout () {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            var booths = JSON.parse(this.responseText);
+            console.log(booths);
+            for(var i = 0; i < booths.length; i++) {
+                var id_i = parseInt(booths[i].id);
+                var x_i = parseFloat(booths[i].x);
+                var y_i = parseFloat(booths[i].y);
+                var w_i = parseFloat(booths[i].width);
+                var h_i = parseFloat(booths[i].height);
+                var v_i = booths[i].vendor;
+                var booth = [id_i, x_i, y_i, w_i, h_i, v_i, BSS_UNCHANGED];
+                selectedBooth = id_i;
+                boothArray.push(booth);
+                generatePoints(booth);
+                displayBooth(selectedBooth);
+                nextBoothNumber = id_i + 1;
+            }
+
+        }
+
+    };
+    xhttp.open("GET", "loaddata.php", true);
+    xhttp.send();
+    
 }
 
 function initControlEvents() {
@@ -84,13 +140,16 @@ function initControlEvents() {
         maxBooths = parseFloat(document.getElementById("numBooths").value);
     }
 
-    // save layout
     // zoom
 
     // change x
     document.getElementById("boothX").onchange = function() {
         var x = parseFloat(document.getElementById("boothX").value);
         boothArray[selectedBooth-1][1] = x;
+        if (boothArray[selectedBooth-1][6] != BSS_NEW) {
+            boothArray[selectedBooth-1][6] = BSS_CHANGED;
+        }
+        
         generatePoints(boothArray[selectedBooth-1]);
     }
 
@@ -98,6 +157,9 @@ function initControlEvents() {
     document.getElementById("boothY").onchange = function() {
         var y = parseFloat(document.getElementById("boothY").value);
         boothArray[selectedBooth-1][2] = y;
+        if (boothArray[selectedBooth-1][6] != BSS_NEW) {
+            boothArray[selectedBooth-1][6] = BSS_CHANGED;
+        }
         generatePoints(boothArray[selectedBooth-1]);
     }
 
@@ -108,6 +170,9 @@ function initControlEvents() {
         var w = parseFloat(document.getElementById("boothW").value);
         boothArray[selectedBooth-1][3] = w;
         boothArray[selectedBooth-1][4] = h;
+        if (boothArray[selectedBooth-1][6] != BSS_NEW) {
+            boothArray[selectedBooth-1][6] = BSS_CHANGED;
+        }
         generatePoints(boothArray[selectedBooth-1]);
     }
 
@@ -120,6 +185,9 @@ function initControlEvents() {
     document.getElementById("boothV").onchange = function() {
         var v = document.getElementById("boothV").value;
         boothArray[selectedBooth-1][5] = v;
+        if (boothArray[selectedBooth-1][6] != BSS_NEW) {
+            boothArray[selectedBooth-1][6] = BSS_CHANGED;
+        }
         generatePoints(boothArray[selectedBooth-1]);
     }
     // change rotation?
@@ -128,18 +196,18 @@ function initControlEvents() {
 
 function initWindowEvents() {
     var mousePressed = false;
-    // select booth
+    
     canvas.onmousedown = function(e) {
         mousePressed = true;
         var curr_x = 2 * (e.clientX - (canvas.width / 2) - canvas.offsetLeft) / canvas.width;
         var curr_y = -2 * (e.clientY - (canvas.height / 2) - canvas.offsetTop) / canvas.height;
-        console.log('curr_x = ' + curr_x);
-        console.log('curr_y = ' + curr_y);
+        
         selectedBooth = 0;
         var boothx;
         var boothy;
         var boothw2;
         var boothh2;
+
         for (var i = 0; i < boothArray.length; i++) {
             boothx = boothArray[i][1];
             boothy = boothArray[i][2];
@@ -159,7 +227,6 @@ function initWindowEvents() {
         }
     }
 
-    // move booth
     canvas.onmousemove = function(e) {
         if (mousePressed) {
             if (selectedBooth > 0) {
@@ -168,13 +235,15 @@ function initWindowEvents() {
 
                 boothArray[selectedBooth-1][1] = parseFloat(new_x.toFixed(snap)); 
                 boothArray[selectedBooth-1][2] = parseFloat(new_y.toFixed(snap));
+                if (boothArray[selectedBooth-1][6] != BSS_NEW) {
+                    boothArray[selectedBooth-1][6] = BSS_CHANGED;
+                }
                 generatePoints(boothArray[selectedBooth-1]);
                 displayBooth(selectedBooth);
             }
         }
     }
 
-    // move booth
     canvas.onmouseup = function(e) {
         mousePressed = false;
     }
@@ -228,7 +297,7 @@ function generatePoints(booth) {
     for (var i = 0; i < 6; i++) {
         colorsArray[idx+i] = color;
     }
-    console.log("color array size = " + colorsArray.length);
+    // console.log("color array size = " + colorsArray.length);
 }
 
 function render() {
@@ -260,8 +329,6 @@ function render() {
     gl.vertexAttribPointer( vPosition2, 4, gl.FLOAT, false, 0, 0 );
     gl.enableVertexAttribArray( vPosition2);
 
-    //gl.uniformvec
-
     var len = colorsArray.length;
     if(len > 0){
         gl.drawArrays(gl.TRIANGLES, 0, len);
@@ -292,6 +359,9 @@ function render() {
 }
 
 window.onload = function() {
+
+    loadLayout();
+
     // get initial values from DOM
     maxBooths = parseFloat(document.getElementById("numBooths").value);
 
