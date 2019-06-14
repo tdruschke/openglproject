@@ -44,8 +44,34 @@
 
             void main()
             {
-                gl_Position = vec4(vPosition, 0, 1);
+                gl_Position = vec4(vPosition, -0.1, 1);
                 gl_PointSize = 12.0;
+            }
+        </script>
+        <!-- for texture mapping -->
+        <script id="tex-vertex-shader" type="x-shader/x-vertex">
+            attribute vec3 vPosition3;
+            attribute vec2 vTexCoord;
+
+            varying vec2 texCoord;
+
+            void main()
+            {
+                texCoord = vTexCoord;     
+                gl_Position = vec4(vPosition3, 1.0);
+            }
+        </script>
+
+        <script id="tex-fragment-shader" type="x-shader/x-fragment">
+            precision mediump float;
+            
+            varying vec2 texCoord;
+
+            uniform sampler2D texMap;
+
+            void main()
+            {
+                gl_FragColor = texture2D( texMap, texCoord );
             }
         </script>
 
@@ -57,7 +83,7 @@
     </head>
 
     <body> 
-        <canvas id="gl-canvas" width="512" height="400">
+        <canvas id="gl-canvas" width="470" height="474">
             Oops ... your browser doesn't support the HTML5 canvas element
         </canvas> 
         <div>
@@ -87,6 +113,7 @@
             </div>
         </div>
         </div>
+        <img id="floorplan-img" src="floorplan.png" crossorigin="anonymous" hidden="hidden" />
         <script type="text/javascript" src="createmode.js"></script>
     </body>
 </html>
