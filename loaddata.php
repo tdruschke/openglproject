@@ -13,7 +13,6 @@ try {
     $result = $stmt->fetchAll();
     $json_string = json_encode($result);
     echo $json_string;
-
 }
 catch(PDOException $e) {
     echo "Connection failed: " . $e->getMessage();
