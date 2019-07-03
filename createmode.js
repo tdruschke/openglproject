@@ -22,12 +22,19 @@ var texture;
 // other global variables
 var nextBoothNumber = 1;
 
+// square booths
 var boothArray = [];
 var linesegs = [];
 var numberArray = [];
-
 var pointsArray = [];
 var colorsArray = [];
+
+// triangular booths
+var triBoothArray = [];
+var triLineSegs = [];
+var triNumberArray = [];
+var triPointsArray = [];
+var triColorsArray = [];
 
 // priority queue for deletion
 var deletedQueue = new priorityQueue();
@@ -41,7 +48,7 @@ var image;
 
 var maxBooths; // eventually a craft variable
 
-var numBooths;
+var numBooths = 0;
 var selectedBooth = 0;
 var snap = 1000;
 
@@ -177,6 +184,36 @@ function deleteBooth() {
     }
 }
 
+function setZoom(level) {
+    var w = 400*level;
+    var h = 300*level;
+    var img = document.getElementById("floorplan-obj");
+    var svgDoc;
+    svgDoc = img.contentDocument;
+    svgDoc.getElementsByTagName("svg")[0].setAttribute("width", w);
+    svgDoc.getElementsByTagName("svg")[0].setAttribute("height", h);
+    canvas.width = w;
+    canvas.height = h;
+    image.setAttribute("width", w);
+    image.setAttribute("height", h);
+}
+
+function stepU() {
+    document.getElementById("zoomer").stepUp(1);
+    // var val = parseInt(document.getElementById("zoomIn").value);
+    // if (val < 7) {
+    //     setZoom(val + 1);
+    // }
+}
+
+function stepD() {
+    document.getElementById("zoomer").stepDown(1);
+    // var val = parseInt(document.getElementById("zoomIn").value);
+    // if (val > 1) {
+    //     setZoom(val - 1);
+    // }
+}
+
 function saveLayout() {
     // json to hold data
     var boothData = {
@@ -304,17 +341,30 @@ function loadLayout () {
 }
 
 function processSVG() {
+    numbooths = 0;
+    boothArray = [];
+    numberArray = [];
+    linesegs = [];
+    pointsArray = [];
     var img = document.getElementById("floorplan-obj");
     var svgDoc;
     svgDoc = img.contentDocument;
     var list = svgDoc.getElementsByTagName("path");
+    // console.log(svgDoc.getElementsByTagName("svg")[0].getAttribute("height"));
+    
     var id_i = 1;
     var str;
     var arr = [];
     var x, y, w, h;
+    var svgScale;  // scale factor svgwidth/viewboxwidth
+    var imgWidth = parseFloat(svgDoc.getElementsByTagName("svg")[0].getAttribute("width"));
+    var vbArr = svgDoc.getElementsByTagName("svg")[0].getAttribute("viewBox").split(" ");
+    var viewBoxWidth = parseFloat(vbArr[2]);
+    svgScale = imgWidth/viewBoxWidth;
+    // svgScale = 4;
 
     for (var i = 0; i < list.length; i++) {
-        if (list[i].getAttribute("stroke") == "blue") {
+        if (list[i].getAttribute("stroke") == "blue" || list[i].getAttribute("stroke") == "red") { //  
             // parse string to get points from path
             str = list[i].getAttribute("d");
             str = str.replace(/M/g," ");
@@ -329,31 +379,143 @@ function processSVG() {
                 y = parseFloat(arr[1]) + h/2;
                 
                 // scale to fit on canvas
-                w = .4/w;
-                h = .4/h;
-                x = x/150; // TODO: dynamically get from image
-                x = x - 1.33;
-                y = y/150; // TODO: dynamically get from image
-                y = y - .365;
-                y *= -1;
-                y += 1.5;
+                w = svgScale * w/(canvas.width/aspect/2);
+                h = svgScale * h/(canvas.height/2);
+                x = x - parseFloat(vbArr[0]);
+                x = svgScale * x / (canvas.width/aspect/2) - 1*aspect;
+                y = y - parseFloat(vbArr[1]);
+                y = -1 * svgScale * y / (canvas.height/2) + 1;
 
-                // make booth
-                var numArrayIdx = numberArray.length;
-                var nums = generateStringPoints(id_i, 0);
-                var numVerts = nums.length;
-                var booth = [id_i, x, y, w, h, "", BSS_UNCHANGED, numArrayIdx, numVerts];
-                adjustToCenter(nums, booth);
-                numberArray = numberArray.concat(nums);
-                selectedBooth = id_i;
-                boothArray.push(booth);
-                generatePoints(booth, 0);
-                id_i += 1;
-                displayBooth(selectedBooth);
-                nextBoothNumber = id_i;
+                if (w > .025 && h > .025) {
+                    // make booth
+                    var numArrayIdx = numberArray.length;
+                    var nums = generateStringPoints(id_i, 0);
+                    var numVerts = nums.length;
+                    var booth = [id_i, x, y, w, h, "", BSS_UNCHANGED, numArrayIdx, numVerts];
+                    adjustToCenter(nums, booth);
+                    numberArray = numberArray.concat(nums);
+                    selectedBooth = id_i;
+                    boothArray.push(booth);
+                    generatePoints(booth, 0);
+                    id_i += 1;
+                    displayBooth(selectedBooth);
+                    nextBoothNumber = id_i;
+                    numBooths += 1;
+                }
             }
-            else if (arr.length == 12){
-                // make triangular booth
+        }
+        if (list[i].getAttribute("stroke") == "lime") {
+            // parse string to get points from path
+            str = list[i].getAttribute("d");
+            str = str.replace(/M/g," ");
+            str = str.replace(/L/g," ");
+            str = str.trim();
+            arr = str.split(" ");
+            if (arr.length == 12) {
+                var hyp1; // upper
+                var hyp2; // lower
+                var rgt;  // right angle
+
+                /*
+                Triangle types:
+                1.       2.       3.       4.
+                +------  ------+  |\            /|
+                |    /    \    |  |  \        /  |
+                |  /        \  |  |    \    /    |
+                |/            \|  +------  ------+
+
+                */
+                var type;
+                
+                // get points
+                var pt1 = vec2(parseFloat(arr[0]),parseFloat(arr[1]));
+                var pt2 = vec2(parseFloat(arr[2]),parseFloat(arr[3]));
+                var pt3 = vec2(parseFloat(arr[4]),parseFloat(arr[5]));
+
+                // determine triangle hypotenuse points
+                if (pt1[0] != pt2[0] && pt1[1] != pt2[1]) {
+                    rgt = pt3;
+                    if (pt1[1] > pt2[1]) {
+                        hyp1 = pt1;
+                        hyp2 = pt2;
+                    }
+                    else {
+                        hyp1 = pt2;
+                        hyp2 = pt1;
+                    }
+                }
+                else if(pt2[0] != pt3[0] && pt2[1] != pt3[1]) {
+                    rgt = pt1;
+                    if (pt2[1] > pt3[1]) {
+                        hyp1 = pt2;
+                        hyp2 = pt3;
+                    }
+                    else {
+                        hyp1 = pt3;
+                        hyp2 = pt2;
+                    }
+                }
+                else {  // pt1[0] != pt3[0] && pt1[1] != pt3[1]
+                    rgt = pt2;
+                    if (pt1[1] > pt3[1]) {
+                        hyp1 = pt1;
+                        hyp2 = pt3;
+                    }
+                    else {
+                        hyp1 = pt3;
+                        hyp2 = pt1;
+                    }
+                }
+
+                // determine orientation
+                if (hyp1[0] > rght[0]) {  // 1 or 4
+                    if (hyp1[1] == rgt[1]) { // 1
+                        type = 1;
+                    }
+                    else { // 4
+                        type = 4;
+                    }
+                }
+                else {  // 2 or 3
+                    if (hyp1[1] == rgt[1]) { // 2
+                        type = 2;
+                    }
+                    else { // 3
+                        type = 3;
+                    }
+                }
+
+
+                // get height, width, position
+                w = parseFloat(arr[6]) - parseFloat(arr[0]);
+                h = parseFloat(arr[3]) - parseFloat(arr[1]);
+                x = parseFloat(arr[0]) + w/2;
+                y = parseFloat(arr[1]) + h/2;
+                
+                // scale to fit on canvas
+                
+                w = svgScale * w/(canvas.width/aspect/2);
+                h = svgScale * h/(canvas.height/2);
+                x = x - parseFloat(vbArr[0]);
+                x = svgScale * x / (canvas.width/aspect/2) - 1*aspect;
+                y = y - parseFloat(vbArr[1]);
+                y = -1 * svgScale * y / (canvas.height/2) + 1;
+                if(w > .025 && h > .025) {
+                    // make booth
+                    var numArrayIdx = numberArray.length;
+                    var nums = generateStringPoints(id_i, 0);
+                    var numVerts = nums.length;
+                    var booth = [id_i, x, y, w, h, "", BSS_UNCHANGED, numArrayIdx, numVerts];
+                    adjustToCenter(nums, booth);
+                    numberArray = numberArray.concat(nums);
+                    selectedBooth = id_i;
+                    boothArray.push(booth);
+                    generatePoints(booth, 0);
+                    id_i += 1;
+                    displayBooth(selectedBooth);
+                    nextBoothNumber = id_i;
+                    numBooths += 1;
+                }
             }
         }
     }
@@ -409,7 +571,10 @@ function initControlEvents() {
         // deselect old booth
         deselectBooth(selectedBooth);
         // select new booth
-        selectedBooth = document.getElementById("boothNum").value;
+        selectedBooth = parseInt(document.getElementById("boothNum").value);
+        if (!selectedBooth) {
+            selectedBooth = 1;
+        }
         if (selectedBooth > numBooths) {
             selectedBooth = 1;
         }
@@ -421,7 +586,7 @@ function initControlEvents() {
     }
 
     // change vendor
-    document.getElementById("boothV").onchange = function() {
+    document.getElementById("boothV").oninput = function() {
         var v = document.getElementById("boothV").value;
         boothArray[selectedBooth-1][5] = v;
         if (boothArray[selectedBooth-1][6] != BSS_NEW) {
@@ -430,6 +595,11 @@ function initControlEvents() {
         // generatePoints(boothArray[selectedBooth-1],1);
     }
     // change rotation?
+
+    document.getElementById("zoomer").oninput = function() {
+        var zoomLevel = document.getElementById("zoomer").value;
+        setZoom(zoomLevel);
+    }
 }
 
 function initWindowEvents() {
