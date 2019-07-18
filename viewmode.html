@@ -72,7 +72,6 @@
                 gl_FragColor = texture2D( texMap, texCoord );
             }
         </script>
-        <!-- Included in the folder but can also be Downloaded: http://www.cs.unm.edu/~angel/WebGL/7E/Common/angelCommon.zip -->
         <script type="text/javascript" src="webgl-utils.js"></script>
         <script type="text/javascript" src="initShaders.js"></script>
         <script type="text/javascript" src="MV.js"></script>
@@ -81,6 +80,18 @@
     </head>
 
     <body> 
+        <div>
+            <label>Zoom: </label>
+            <input type="button" id="zoomOut" value="-" onclick="stepD()">
+            <input type="range" value="1" min="1"max="7" id="zoomer">
+            <input type="button" id="zoomIn" value="+" onclick="stepU()">
+        </div>
+        <div>
+            Select by category <select id="category" onmousedown="if(this.options.length>5){this.size=12;}" onchange="this.size=0;" onblur="this.size=0;" style="position: absolute; width: 5em"></select>
+        </div>
+        <div>
+            Search: <input id="searchBar" type="text" />
+        </div>
         <canvas id="gl-canvas" width="512" height="512" >
             Oops ... your browser doesn't support the HTML5 canvas element
         </canvas>
@@ -88,10 +99,13 @@
         <div id="boothStats" style="visibility:hidden">
             <h3>Selected Booth</h3>
             <div>
-                Booth Number: <input id="boothNum" type="number"/>
+                Select Booth: <select id="boothNum" onmousedown="if(this.options.length>5){this.size=12;}" onchange="this.size=0;" onblur="this.size=0;" style="position: absolute; width: 5em"></select>
             </div>
             <div>
                 Dimensions: <span id="boothH"></span> x <span id="boothW"></span>
+            </div>
+            <div>
+                Area: <span id="boothA"></span> sq. ft.
             </div>
             <div>
                 Vendor: <span id="boothV"></span>
@@ -111,8 +125,10 @@
         
            
         </div>
-        <img id="floorplan-img" src="field.jpg" crossorigin="anonymous" hidden="hidden" />
+        <img id="floorplan-img" src="GaylordOpryland2.svg" crossorigin="anonymous" hidden="hidden" />
+        <object id="floorplan-obj" type="image/svg+xml" data="GaylordOpryland2.svg" style="visibility:hidden"></object> 
         <script type="text/javascript" src="pq.js"></script>
-        <script type="text/javascript" src="viewmode.js"></script>
+        <script type="text/javascript" src="mergesort.js"></script>
+        <script type="text/javascript" src="viewmode2.js"></script>
     </body>
 </html>

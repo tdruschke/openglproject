@@ -13,14 +13,15 @@ try {
     $data = json_decode($_POST['json_string'], true);
 
     // prepare sql and bind parameters for insertion
-    $stmt_insert = $conn->prepare("INSERT INTO booths (id, x, y, width, height, vendor) 
-    VALUES (:id, :x, :y, :w, :h, :v)");
+    $stmt_insert = $conn->prepare("INSERT INTO booths (id, x, y, width, height, vendor, boothType) 
+    VALUES (:id, :x, :y, :w, :h, :v, :t)");
     $stmt_insert->bindParam(':id', $id, PDO::PARAM_INT, 11);
     $stmt_insert->bindParam(':x', $x, PDO::PARAM_STR, 20);
     $stmt_insert->bindParam(':y', $y, PDO::PARAM_STR, 20); 
     $stmt_insert->bindParam(':w', $width, PDO::PARAM_STR, 20);
     $stmt_insert->bindParam(':h', $height, PDO::PARAM_STR, 20);
     $stmt_insert->bindParam(':v', $vendor, PDO::PARAM_STR, 255); 
+    $stmt_insert->bindParam(':t', $type, PDO::PARAM_INT, 11);
 
     $new = $data["new"];
     $len = count($new);
@@ -33,13 +34,14 @@ try {
         $width = $new[$i]["w"];
         $height = $new[$i]["h"];
         $vendor = $new[$i]["vendor"];
+        $type = $new[$i]["type"];
 
         $stmt_insert->execute();
     }
 
     // prepare sql and bind parameters for update
     $stmt_update = $conn->prepare("Update booths SET x = :x, 
-        y = :y, width = :w, height = :h, vendor = :v
+        y = :y, width = :w, height = :h, vendor = :v, boothType = :t
         WHERE id = :id");
     $stmt_update->bindParam(':id', $idc, PDO::PARAM_INT, 11);
     $stmt_update->bindParam(':x', $xc, PDO::PARAM_STR, 20);
@@ -47,6 +49,7 @@ try {
     $stmt_update->bindParam(':w', $widthc, PDO::PARAM_STR, 20);
     $stmt_update->bindParam(':h', $heightc, PDO::PARAM_STR, 20);
     $stmt_update->bindParam(':v', $vendorc, PDO::PARAM_STR, 255); 
+    $stmt_update->bindParam(':t', $typec, PDO::PARAM_INT, 11);
 
     $changed = $data["changed"];
     $len = count($changed);
@@ -59,6 +62,7 @@ try {
         $widthc = $changed[$i]["w"];
         $heightc = $changed[$i]["h"];
         $vendorc = $changed[$i]["vendor"];
+        $typec = $changed[$i]["type"];
 
         $stmt_update->execute();
     }
