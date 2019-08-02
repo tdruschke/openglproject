@@ -385,6 +385,7 @@ function renumberBooth() {
 }
 
 function saveLayout() {
+    console.log("saving layout . . .");
     // json to hold data
     var boothData = {
         "new" : [],
@@ -437,7 +438,7 @@ function saveLayout() {
             triBoothArray[t][6] = BSS_UNCHANGED;
             n += 1;
         }
-        else if (boothArray[t][6] == BSS_CHANGED) {
+        else if (triBoothArray[t][6] == BSS_CHANGED) {
             boothData.changed[c] = {
                 "id": triBoothArray[t][10],
                 "x": triBoothArray[t][1],
@@ -458,6 +459,7 @@ function saveLayout() {
             "id": deletedBoothArray[d][10]
         };
     }
+    console.log(boothData);
     // send post request
     var data = "json_string="+JSON.stringify(boothData);
     // console.log(data);
@@ -548,7 +550,7 @@ function rotateBooth() {
         }
         updateTriPoints(booth, 1);
         adjustNumber(selectedBooth);
-        
+        triBoothArray[selectedBooth[1]-1][6] = BSS_CHANGED;
     }
     else {
         booth = boothArray[selectedBooth[1]-1];
@@ -557,6 +559,7 @@ function rotateBooth() {
         booth[3] = booth[3] - booth[4];
         updatePoints(booth, 1);
         adjustNumber(selectedBooth);
+        boothArray[selectedBooth[1]-1] = BSS_CHANGED;
     }
     displayBooth(selectedBooth);
 }
@@ -1059,9 +1062,17 @@ function initControlEvents() {
     // change vendor
     document.getElementById("boothV").oninput = function() {
         var v = document.getElementById("boothV").value;
-        boothArray[selectedBooth[1]-1][5] = v;
-        if (boothArray[selectedBooth[1]-1][6] != BSS_NEW) {
-            boothArray[selectedBooth[1]-1][6] = BSS_CHANGED;
+        if (selectedBooth[0] == 0) {
+            boothArray[selectedBooth[1]-1][5] = v;
+            if (boothArray[selectedBooth[1]-1][6] != BSS_NEW) {
+                boothArray[selectedBooth[1]-1][6] = BSS_CHANGED;
+            }
+        }
+        else {
+            triBoothArray[selectedBooth[1]-1][5] = v;
+            if (triBoothArray[selectedBooth[1]-1][6] != BSS_NEW) {
+                triBoothArray[selectedBooth[1]-1][6] = BSS_CHANGED;
+            }
         }
     }
 
@@ -1104,6 +1115,7 @@ function initWindowEvents() {
 
                 selectedBooth = [0,i+1];
                 displayBooth(selectedBooth);
+                console.log(boothArray[selectedBooth[1]-1]);
                 x_offset_from_center = curr_x - boothArray[i][1];
                 y_offset_from_center = curr_y - boothArray[i][2];
                 break;
@@ -1121,6 +1133,7 @@ function initWindowEvents() {
 
                 selectedBooth = [1,i+1];
                 displayBooth(selectedBooth);
+                console.log(triBoothArray[selectedBooth[1]-1]);
                 x_offset_from_center = curr_x - triBoothArray[i][1];
                 y_offset_from_center = curr_y - triBoothArray[i][2];
                 break;
