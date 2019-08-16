@@ -43,7 +43,7 @@
             void main()
             {
                 gl_Position = vec4(vPosition, -0.1, 1);
-                gl_PointSize = 12.0;
+                gl_PointSize = 40.0;
             }
         </script>
         <!-- shaders for texture mapping -->
@@ -93,7 +93,7 @@
             Search: <input id="searchBar" type="text" />
         </div>
         <div>
-            <input type="button" id="clearSearch" value="Clear Search" onlclick="clearSearch()">
+            <input type="button" id="clearSearch" value="Clear Search" onclick="clearSearch()">
         </div>
         <canvas id="gl-canvas" width="512" height="512" >
             Oops ... your browser doesn't support the HTML5 canvas element
@@ -112,6 +112,9 @@
             </div>
             <div>
                 Vendor: <span id="boothV"></span>
+            </div>
+            <div>
+                Categories: <span id="cats"></span>
             </div>
         </div>
         <div>

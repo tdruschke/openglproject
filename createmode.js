@@ -103,12 +103,12 @@ function newBooth() {
     var y = 0.0;
     // align new booth with grid if other booths present
     if (boothArray.length > 0) {
-        var x = boothArray[0][1];
-        var y = boothArray[0][2] + Math.floor((0.9 - boothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
+        x = boothArray[0][1];
+        y = boothArray[0][2] + Math.floor((0.9 - boothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
     }
     else if (triBoothArray.length > 0) {
-        var x = triBoothArray[0][1];
-        var y = triBoothArray[0][2] + Math.floor((0.9 - triBoothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
+        x = triBoothArray[0][1];
+        y = triBoothArray[0][2] + Math.floor((0.9 - triBoothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
     }
     
     var h = 10/conversionFactor;
@@ -126,7 +126,7 @@ function newBooth() {
     var numArrayIdx = numberArray.length;
     var nums = generateStringPoints(number,1);
     var numVerts = nums.length;
-    var booth = [id, x, y, w, h, vendor, BSS_NEW, numArrayIdx, numVerts, 0, number];
+    var booth = [id, x, y, w, h, vendor, BSS_NEW, numArrayIdx, numVerts, 0, number, [], []];
     nums = adjustToCenter(nums, booth);
     numberArray = numberArray.concat(nums);
 
@@ -134,7 +134,7 @@ function newBooth() {
     selectedBooth = [0,id];
     boothArray.push(booth);
     generatePoints(booth, 1);
-    insertIntoBoothSelectionArray([number, 0, id]);
+    insertIntoBoothSelectionArray(number, 0, id);
     displayBooth(selectedBooth);
 
     numBooths += 1;
@@ -146,12 +146,12 @@ function newTriBooth() {
     var y = 0.0;
     // align new booth with grid if other booths present
     if (boothArray.length > 0) {
-        var x = boothArray[0][1];
-        var y = boothArray[0][2] + Math.floor((0.9 - boothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
+        x = boothArray[0][1];
+        y = boothArray[0][2] + Math.floor((0.9 - boothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
     }
     else if (triBoothArray.length > 0) {
-        var x = triBoothArray[0][1];
-        var y = triBoothArray[0][2] + Math.floor((0.9 - triBoothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
+        x = triBoothArray[0][1];
+        y = triBoothArray[0][2] + Math.floor((0.9 - triBoothArray[0][2])/(10/conversionFactor))*(10/conversionFactor);
     }
     var h = 20/conversionFactor;
     var w = 20/conversionFactor;
@@ -159,14 +159,14 @@ function newTriBooth() {
     var booth;
     var id_t = triBoothArray.length+1;
     var nums = [];
-    number = highestBoothNumber;
     highestBoothNumber += 1;
-    
+    number = highestBoothNumber;
+
     // make numbers
     var numArrayIdx = numberArray.length;
     nums = generateStringPoints(number,1);
     var numVerts = nums.length;
-    booth = [id_t, x, y, w, h, vendor, BSS_NEW, numArrayIdx, numVerts, 2, number];
+    booth = [id_t, x, y, w, h, vendor, BSS_NEW, numArrayIdx, numVerts, 2, number, [], []];
     nums = adjustToCenter(nums, booth);
     numberArray = numberArray.concat(nums);
 
@@ -174,19 +174,21 @@ function newTriBooth() {
     selectedBooth = [1,id_t];
     triBoothArray.push(booth);
     generateTriPoints(booth, 1);
-    insertIntoBoothSelectionArray([number, 0, id_t]);
+    insertIntoBoothSelectionArray(number, 1, id_t);
     displayBooth(selectedBooth);
 
     numBooths += 1;
 }
 
 function deleteBooth() { 
+    console.log(selectedBooth);
     var idx;
     if (selectedBooth[1] < 1) {
         return;
     }
     if (selectedBooth[0] == 0) {
         idx = selectedBooth[1] - 1;
+        deselectBooth(selectedBooth);
         var booth = boothArray[idx];
         var numIdx = booth[7];
         var numLength = booth[8];
@@ -222,10 +224,12 @@ function deleteBooth() {
             }
         }
         booth[6] = BSS_DELETED;
+        deleteFromBoothSelectionArray(booth[10]);
         deletedBoothArray.push(booth);
     }
     else {
         idx = selectedBooth[1] - 1;
+        deselectBooth(selectedBooth);
         var booth = triBoothArray[idx];
         var numIdx = booth[7];
         var numLength = booth[8];
@@ -246,6 +250,7 @@ function deleteBooth() {
         tail = numberArray.slice(numIdx+numLength);
         numberArray = head.concat(tail);
         // adjust values for booths where (tri)boothsArray[i][7] > numIdx;
+        console.log("made it through slicing");
         for(var i = 0; i < boothArray.length; i++) {
             if (boothArray[i][7] > numIdx) {
                 boothArray[i][7] -= numLength;
@@ -259,11 +264,12 @@ function deleteBooth() {
                 triBoothArray[t][7] -= numLength;
             }
         }
+        console.log("made it through loops");
         booth[6] = BSS_DELETED;
         deleteFromBoothSelectionArray(booth[10]);
         deletedBoothArray.push(booth);
+        console.log("returning from deleteBooth()");
     }
-
 }
 
 function setZoom(level) {
@@ -338,6 +344,11 @@ function renumberBooth() {
         booth = triBoothArray[selectedBooth[1]-1];
         triBoothArray[selectedBooth[1]-1][10] = newNum;
     }
+
+    if (newNum > highestBoothNumber) {
+        highestBoothNumber = newNum;
+    }
+
     var numArrayIdx = booth[7];
     var numLength = booth[8];
     
@@ -380,7 +391,12 @@ function renumberBooth() {
         }
     }
     deleteFromBoothSelectionArray(booth[10]);
-    insertIntoBoothSelectionArray([newNum, booth[9] == 0 ? 0 : 1, booth[0]]);
+    if (booth[9] == 0) {
+        insertIntoBoothSelectionArray(newNum, 0, booth[0]);
+    }
+    else {
+        insertIntoBoothSelectionArray(newNum, 1, booth[0]);
+    }
     input.value ='';
 }
 
@@ -507,7 +523,7 @@ function loadLayout () {
                         var numArrayIdx = numberArray.length;
                         var nums = generateStringPoints(num_b, 0);
                         var numVerts = nums.length;
-                        var booth = [0, x_b, y_b, w_b, h_b, v_b, BSS_UNCHANGED, numArrayIdx, numVerts, t_b, num_b];
+                        var booth = [0, x_b, y_b, w_b, h_b, v_b, BSS_UNCHANGED, numArrayIdx, numVerts, t_b, num_b, [], []];
                         adjustToCenter(nums, booth);
                         numberArray = numberArray.concat(nums);
 
@@ -539,6 +555,66 @@ function loadLayout () {
     };
     xhttp.open("GET", "loaddata.php", true);
     xhttp.send();
+}
+
+
+function loadVendorCategories() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            catArray = JSON.parse(this.responseText).categories;
+            var catKeys = Object.keys(catArray);
+            var catVals = Object.values(catArray);
+            catArray = [];
+            for (var i = 0; i < catKeys.length; i++) {
+                catArray.push([catKeys[i], catVals[i]]);
+            }
+            catArray = mergeSort(catArray, 1);
+        }
+    };
+    xhttp.open("GET", "getcategories.php", true);
+    xhttp.send();
+}
+
+function loadCategoryData() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            var cats = JSON.parse(this.responseText);
+            var recIdx = 0;
+            var triIdx = 0;
+            var catIdx = 0;
+            while (catIdx < cats.length) {
+                if (cats[catIdx].booth_num == boothArray[recIdx][10]) {
+                    boothArray[recIdx][11].push(cats[catIdx].cat_id);
+                    boothArray[recIdx][12].push(cats[catIdx].cat_name);
+                    catIdx += 1;
+                }
+                else if (cats[catIdx].booth_num == triBoothArray[triIdx][10]) {
+                    triBoothArray[triIdx][11].push(cats[catIdx].cat_id);
+                    triBoothArray[triIdx][12].push(cats[catIdx].cat_name);
+                    catIdx += 1;
+                }
+                else if (boothArray[recIdx][10] < triBoothArray[triIdx][10]
+                         && recIdx < boothArray.length - 1) {
+                    recIdx += 1;
+                }
+                else if (triIdx < triBoothArray.length -1) {
+                    triIdx += 1;
+                }
+            }
+        }
+    };
+    xhttp.open("GET", "loadcatdata.php", true);
+    xhttp.send();
+}
+
+function selectCategories() {
+    // opens dialog to add vendor categories to selected booth
+}
+
+function addCategories() {
+    // save currently selected categories for selected booth
 }
 
 function rotateBooth() {
@@ -749,7 +825,7 @@ function buildBoothSelectionArray() {
         return;
     }
     for (var  i = 0; i < boothArray.length; i++) {
-        //                        [number, array: 0 rect 1 tri, idx]
+        //                        [number, arraytype: 0 rect 1 tri, idx]
         boothSelectionArray.push([boothArray[i][10], 0, boothArray[i][0]]);
     }
     for (i = 0; i < triBoothArray.length; i++) {
@@ -759,13 +835,15 @@ function buildBoothSelectionArray() {
     makeSelector();
 }
 
-function insertIntoBoothSelectionArray(boothDetails) {
-    var num = boothDetails[0];
+function insertIntoBoothSelectionArray(num, type, idx) {
+    console.log(boothSelectionArray);
+    console.log(num);
+    var details = [num,type,idx]; 
     if (num < boothSelectionArray[0][0]) {
-        boothSelectionArray = [boothDetails].concat(boothSelectionArray);
+        boothSelectionArray = [details].concat(boothSelectionArray);
     }
     else if (num > boothSelectionArray[boothSelectionArray.length-1][0]) {
-        boothSelectionArray = boothSelectionArray.concat([boothDetails]);
+        boothSelectionArray = boothSelectionArray.concat([details]);
     }
     else {
         // Modified Binary Search for insertion point
@@ -773,13 +851,13 @@ function insertIntoBoothSelectionArray(boothDetails) {
         var lo = 0;
         while (lo < hi) {
             var mid = Math.floor((lo + hi) / 2);
-            if (boothSelectionArray[mid] < num && boothSelectionArray[mid+1] > num) {
+            if (boothSelectionArray[mid][0] < num && boothSelectionArray[mid+1][0] > num) {
                 var head = boothSelectionArray.split(0, mid+1);
                 var tail = boothSelectionArray.split(mid+1);
-                var boothSelectionArray = head.concat([boothDetails], tail);
-                return;
+                boothSelectionArray = head.concat([boothDetails], tail);
+                break;
             }
-            else if (boothSelectionArray[mid] > num) {
+            else if (boothSelectionArray[mid][0] > num) {
                 hi = mid - 1;
             }
             else {
@@ -791,22 +869,39 @@ function insertIntoBoothSelectionArray(boothDetails) {
 }
 
 function deleteFromBoothSelectionArray(num) {
+    console.log("starting search for "+num);
     var lo = 0;
-    var hi = boothSelectionArray.length;
+    var hi = boothSelectionArray.length-1;
+    var mid;
     while (lo <= hi) {
-        var mid = Math.floor((hi-lo)/2);
-        if (mid == num) {
-            var head = boothSelectionArray.split(0,mid);
-            var tail = boothSelectionArray.split(mid+1);
-            boothSelectionArray = head.concat(tail);
-            return;
+        mid = Math.floor((hi+lo)/2);
+        console.log("Lo: "+lo+", Mid: "+mid+", hi: "+hi);
+        console.log("Val: "+boothSelectionArray[mid][0]);
+        if (boothSelectionArray[mid][0] < num){
+            lo = mid + 1;
         }
-        else if (num < mid) {
+        else if (boothSelectionArray[mid][0] > num) {
             hi = mid - 1;
         }
         else {
-            lo = mid + 1;
+            var head = boothSelectionArray.slice(0,mid);
+            var tail = boothSelectionArray.slice(mid+1);
+            boothSelectionArray = head.concat(tail);
+            console.log("found idx");
+            break;     
         }
+        // if (boothSelectionArray[mid][0] == num) {
+        //     var head = boothSelectionArray.split(0,mid);
+        //     var tail = boothSelectionArray.split(mid+1);
+        //     boothSelectionArray = head.concat(tail);
+        //     break;
+        // }
+        // else if (num < boothSelectionArray[mid][0]) {
+        //     hi = mid - 1;
+        // }
+        // else {
+        //     lo = mid + 1;
+        // }
     }
     makeSelector();
 }
@@ -1253,6 +1348,7 @@ function deselectBooth(sb) {
             numberArray[idx+i][2] = -.1;
         }
     }
+    selectedBooth = [-1, 0];
 }
 
 function displayBooth(sb) {
@@ -1277,6 +1373,16 @@ function displayBooth(sb) {
     document.getElementById("boothW").value = booth[3] * conversionFactor;
     document.getElementById("boothH").value = booth[4] * conversionFactor;
     document.getElementById("boothV").value = booth[5];
+    if (booth[11] != []) {
+        var cats = "";
+        for (var i = 0; i < booth[11].length; i++) {
+            if (i > 0) {
+                cats += ", ";
+            }
+            cats += booth[12][i];
+        }
+        document.getElementById("cats").innerHTML = cats;
+    }
 }
 
 function hideBoothDetails() {
@@ -1978,6 +2084,8 @@ window.onload = function() {
     aspect =  canvas.width/canvas.height;
     // console.log(aspect);
     loadLayout();
+    loadVendorCategories();
+    loadCategoryData();
     
  
     // get initial values from DOM

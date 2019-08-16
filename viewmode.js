@@ -16,6 +16,8 @@ var cBuffer;
 var tCoordBufferId;
 var tPointBufferId;
 var numBuffer;
+var highlightBuffer;
+var hlColorBuffer;
 
 var triPointBuffer;
 var triColorBuffer;
@@ -45,7 +47,12 @@ var triPointsArray = [];
 var triColorsArray = [];
 
 var highlightedBoothArray = [];
+var highlightColorsArray = [];
+var highlightColor = vec4(1.0, 0.6, 0.0, 1.0);
+var thickness = .00625;
 var vendorTableArray = [];
+
+var catArray = [];
 
 // priority queue for deletion
 var deletedBoothArray = [];
@@ -69,7 +76,7 @@ var vendorArrayAlpha = [];
 var vendorArrayNum = [];
 var vendorArray;
 
-var vendorArrayState = -1;
+var vendorArrayState = 0;
 
 // colors for booths
 var c_open_top = vec4(.2, .9, .9, 1.0);
@@ -174,7 +181,7 @@ function loadLayout () {
                         var numArrayIdx = numberArray.length;
                         var nums = generateStringPoints(num_b, 0);
                         var numVerts = nums.length;
-                        var booth = [0, x_b, y_b, w_b, h_b, v_b, BSS_UNCHANGED, numArrayIdx, numVerts, t_b, num_b];
+                        var booth = [0, x_b, y_b, w_b, h_b, v_b, BSS_UNCHANGED, numArrayIdx, numVerts, t_b, num_b, [],[]];
                         adjustToCenter(nums, booth);
                         numberArray = numberArray.concat(nums);
 
@@ -206,11 +213,44 @@ function loadLayout () {
     xhttp.send();
 }
 
+function loadCategoryData() {
+    var xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            var cats = JSON.parse(this.responseText);
+            var recIdx = 0;
+            var triIdx = 0;
+            var catIdx = 0;
+            while (catIdx < cats.length) {
+                if (cats[catIdx].booth_num == boothArray[recIdx][10]) {
+                    boothArray[recIdx][11].push(cats[catIdx].cat_id);
+                    boothArray[recIdx][12].push(cats[catIdx].cat_name);
+                    catIdx += 1;
+                }
+                else if (cats[catIdx].booth_num == triBoothArray[triIdx][10]) {
+                    triBoothArray[triIdx][11].push(cats[catIdx].cat_id);
+                    triBoothArray[triIdx][12].push(cats[catIdx].cat_name);
+                    catIdx += 1;
+                }
+                else if (boothArray[recIdx][10] < triBoothArray[triIdx][10]
+                         && recIdx < boothArray.length - 1) {
+                    recIdx += 1;
+                }
+                else if (triIdx < triBoothArray.length -1) {
+                    triIdx += 1;
+                }
+            }
+        }
+    };
+    xhttp.open("GET", "loadcatdata.php", true);
+    xhttp.send();
+}
+
 function loadVendorCategories() {
     var xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-            var catArray = JSON.parse(this.responseText).categories;
+            catArray = JSON.parse(this.responseText).categories;
             var catKeys = Object.keys(catArray);
             var catVals = Object.values(catArray);
             catArray = [];
@@ -218,17 +258,12 @@ function loadVendorCategories() {
                 catArray.push([catKeys[i], catVals[i]]);
             }
             catArray = mergeSort(catArray, 1);
-            // console.log(catKeys);
-            // console.log(catVals);
 
             // populate category selector
             var options = "";
             for (var i = 0; i < catKeys.length; i++) {
                 var key = parseInt(catArray[i][0]);
                 options += "<option value=\"" + catArray[i][1] +"\"  onclick=\"highlightCategory(" + key + ")\" >" + catArray[i][1] + "</option>";
-            }
-            for (i = 0; i < catArray.length; i++) {
-                
             }
             document.getElementById("category").innerHTML = options;
         }
@@ -237,26 +272,201 @@ function loadVendorCategories() {
     xhttp.send();
 }
 
-function hightlightCategorty(number) {
+function hightlightCategory(number) {
+    vendorTableArray = [];
 
+    for (var i = 0; i < boothArray.length; i++) {
+        var cats = boothArray[i][11];
+        for (var j = 0; j < cats.length; j++) {
+            if (cats[j] == number) {
+                // add values to vendorArray
+                vendorTableArray.push([boothArray[i][10],boothArray[i][5], 0, boothArray[i][0]]);
+                break;
+            }
+        }
+    }
+    for (i = 0; i < triBoothArray.length; i++) {
+        var cats = boothArray[i][11];
+        for (var j = 0; j < cats.length; j++) {
+            vendorTableArray.push([triBoothArray[i][10],triBoothArray[i][5], 1, triBoothArray[i][0]]);
+            break;
+        }
+    }
+    generateHighlightArrays();
+}
+
+function generateHighlightArrays() {
+    for (var i = 0; i < vendorTableArray.length; i++) {
+        if (vendorTableArray[i][2] == 0) {
+            var idx = vendorTableArray[i][3]-1;
+            var x = boothArray[idx][1]/aspect;
+            var y = boothArray[idx][2];
+            var w2 = boothArray[idx][3]/2/aspect;
+            var h2 = boothArray[idx][4]/2;
+            var z = -1.0;
+            var thickX = thickness/aspect;
+
+            highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2+thickX, y+h2, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2+thickX, y+h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+thickness, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2+thickX, y+h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2+thickX, y-h2-thickness, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2+thickX, y-h2-thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2, y-h2-thickness, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2, y-h2-thickness, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x-w2-thickX, y-h2-thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x+w2, y-h2-thickness, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x-w2-thickX, y+h2+thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+
+            highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+            highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+        }
+        else {
+            var idx = vendorTableArray[i][3]-1;
+            var x = triBoothArray[idx][1]/aspect;
+            var y = triBoothArray[idx][2];
+            var w2 = triBoothArray[idx][3]/2/aspect;
+            var h2 = triBoothArray[idx][4]/2;
+            var z = -.5;
+            var type = triBoothArray[idx][9];
+            var thickX = thickness/aspect;
+            var dx = 2.75*thickX; // thickX/Math.tan(Math.atan(h2/w2)/2);
+            var dy = 2.75*thickness; // thickness/Math.tan(Math.atan(h2/w2)/2);
+
+            switch (type) {
+                case 1:
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+dx, y+h2+thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2-dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+dx, y+h2+thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2-dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2-dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+                    break;
+                case 2:
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y-h2-dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y-h2-dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-dx, y+h2+thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-dx, y+h2+thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-dx, y+h2+thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+thickness, z, 1.0));
+                    break;
+                case 3:
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-dx, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-dx, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y+h2+dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y-h2-thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y+h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+thickX, y-h2-thickness, z, 1.0));
+                    break;
+                case 4:
+                    highlightedBoothArray.push(vec4(x-w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y+h2+dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y+h2+dy, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+dx, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+dx, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2, y+h2, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x+w2+dx, y-h2-thickness, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2-thickness, z, 1.0));
+
+                    highlightedBoothArray.push(vec4(x+w2, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2, z, 1.0));
+                    highlightedBoothArray.push(vec4(x-w2-thickX, y-h2-thickness, z, 1.0));
+                    break;
+            }
+        }
+    }
+
+    for (i = 0; i < highlightedBoothArray.length; i++) {
+        highlightColorsArray.push(highlightColor);
+    }
 }
 
 function vendorSearch() {
     var val = document.getElementById("searchBar").value;
     highlightedBoothArray = [];
+    highlightColorsArray = [];
     vendorTableArray = [];
     if (val == "") {
-        // TODO: loop through both booth arrays and get all of them
-        for (var i = 0; i < boothArray.length; i++) {
-            if (boothArray[i][5] != "") {
-                vendorTableArray.push([boothArray[i][10],boothArray[i][5], 0, boothArray[i][0]]);
-            }
-        }
-        for (i = 0; i < triBoothArray.length; i++) {
-            if (triBoothArray[i][5] != "") {
-                vendorTableArray.push([triBoothArray[i][10],triBoothArray[i][5], 1, triBoothArray[i][0]]);
-            }
-        }
+        makeVendorArray();
     }
     else {
         val = val.toLowerCase();
@@ -266,79 +476,25 @@ function vendorSearch() {
             var testVal = boothArray[i][5].toLowerCase();
             if (regex.test(testVal)) {
                 vendorTableArray.push([boothArray[i][10],boothArray[i][5], 0, boothArray[i][0]]);
-                var x = boothArray[i][1];
-                var y = boothArray[i][2];
-                var w2 = boothArray[i][3]/2;
-                var h2 = boothArray[i][4]/2;
-                var z = -.3;
-
-                highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                highlightedBoothArray.push(vec3(x+w2, y+h2, z));
             }
         }
         for (i = 0; i < triBoothArray.length; i++) {
             var testVal = triBoothArray[i][5].toLowerCase();
             if (regex.test(testVal)) {
                 vendorTableArray.push([triBoothArray[i][10],triBoothArray[i][5], 1, triBoothArray[i][0]]);
-                var x = triBoothArray[i][1];
-                var y = triBoothArray[i][2];
-                var w2 = triBoothArray[i][3]/2;
-                var h2 = triBoothArray[i][4]/2;
-                var z = -.3;
-                var type = triBoothArray[i][9];
-    
-                switch (type) {
-                    case 1:
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        break;
-                    case 2:
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        break;
-                    case 3:
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y+h2, z));
-                        break;
-                    case 4:
-                        highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x+w2, y-h2, z));
-                        highlightedBoothArray.push(vec3(x-w2, y+h2, z));
-                        break;
-                }
             }  
         }
+        generateHighlightArrays();
     }
-    console.log(vendorTableArray);
-    mergeSort(vendorTableArray, vendorArrayState);
     makeVendorTable();
 }
 
 function clearSearch() {
     // clear highlighted array
+    document.getElementById("searchBar").value = "";
     hightlightedBoothArray = [];
     // display all vendors in vendors table
+    makeVendorArray();
     makeVendorTable();
 }
 
@@ -610,6 +766,16 @@ function displayBooth(sb) {
     }
     document.getElementById("boothA").innerHTML = a;
     document.getElementById("boothV").innerHTML = booth[5];
+    if (booth[11] != []) {
+        var cats = "";
+        for (var i = 0; i < booth[11].length; i++) {
+            if (i > 0) {
+                cats += ", ";
+            }
+            cats += booth[12][i];
+        }
+        document.getElementById("cats").innerHTML = cats;
+    }
 }
 
 function hideBoothDetails() {
@@ -666,32 +832,8 @@ function sortVendors(col) {
     makeVendorTable();
 }
 
-function populateVendorArrays() {
-    // vendorArray: [number, vendor, array, index]
-    vendorArrayNum = [];
-    for (var i = 0; i < boothArray.length; i++) {
-        var num = boothArray[i][10];
-        var id = boothArray[i][0];
-        var v = boothArray[i][5]
-        if (v != "") {
-            vendorArrayNum.push([num, v, 0, id]);
-        }
-    }
-    for (i = 0; i < triBoothArray.length; i++) {
-        var num = triBoothArray[i][10];
-        var id = triBoothArray[i][0];
-        var v = triBoothArray[i][5]
-        if (v != "") {
-            vendorArrayNum.push([num, v, 1, id]);
-        }
-    }
-    vendorArrayNum = mergeSort(vendorArrayNum, 0);
-    vendorArrayAlpha = mergeSort(vendorArrayNum, 1);
-    vendorArrayState = 0;
-    vendorArray = vendorArrayNum;
-}
-
 function makeVendorArray() {
+    vendorTableArray = [];
     for (var i = 0; i < boothArray.length; i++) {
         if (boothArray[i][5] != "") {
             vendorTableArray.push([boothArray[i][10],boothArray[i][5], 0, boothArray[i][0]]);
@@ -702,9 +844,8 @@ function makeVendorArray() {
             vendorTableArray.push([triBoothArray[i][10],triBoothArray[i][5], 1, triBoothArray[i][0]]);
         }
     }
-    sortVendors(0);
-
-    console.log("vendorTableArray length: "+vendorTableArray.length);
+    sortVendors(vendorArrayState);
+    // console.log("vendorTableArray length: "+vendorTableArray.length);
 }
 
 function makeVendorTable() {
@@ -718,7 +859,7 @@ function makeVendorTable() {
             "</td><td>"+ vendorName + "</td></tr>";
     }
     document.getElementById("vendorTable").innerHTML = tableContents;
-    console.log("vendor table made");
+    // console.log("vendor table made");
 }
 
 function highlightBooth(arr, idx) {
@@ -1326,8 +1467,13 @@ function render() {
     // use sq program
     gl.useProgram(sqShader);
     var combinedColors = colorsArray.concat(triColorsArray);
+    combinedColors = combinedColors.concat(highlightColorsArray);
     var combinedPoints = pointsArray.concat(triPointsArray);
+    combinedPoints = combinedPoints.concat(highlightedBoothArray);
 
+    // console.log(combinedColors.length);
+    // console.log(combinedPoints.length);
+    
     gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
     gl.bufferData( gl.ARRAY_BUFFER, flatten(combinedColors), gl.DYNAMIC_DRAW );
     var vColor = gl.getAttribLocation( sqShader, "vColor" );
@@ -1397,6 +1543,7 @@ window.onload = function() {
     // console.log(aspect);
     loadLayout();
     loadVendorCategories();
+    loadCategoryData();
 
     // Initialize a WebGL context
     gl = WebGLUtils.setupWebGL(canvas);
@@ -1411,10 +1558,18 @@ window.onload = function() {
     sqShader = initShaders(gl, "vertex-shader", "fragment-shader-sq");
     texShader = initShaders(gl, "tex-vertex-shader", "tex-fragment-shader");
 
-    // create and bind boarder buffer
+    // create and bind border buffer
     boarderBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, boarderBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, flatten(boarder), gl.DYNAMIC_DRAW);
+
+    // // create and bind highlight border buffer
+    // highlightBuffer = gl.createBuffer();
+    // gl.bindBuffer(gl.ARRAY_BUFFER, highlightBuffer);
+
+    // // highlight color buffer
+    // hlColorBuffer = gl.createBuffer();
+    // gl.bindBuffer(gl.ARRAY_BUFFER, hlColorBuffer);
 
     // create and bind line buffer
     lineBuffer = gl.createBuffer();
